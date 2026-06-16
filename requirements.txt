@@ -1,7 +1,6 @@
-%%writefile requirements.txt
 streamlit
 pandas
 numpy
-scikit-learn
+scikit-learn==1.2.2
 xgboost
 joblib
