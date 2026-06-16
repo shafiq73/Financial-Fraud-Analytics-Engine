@@ -10,10 +10,10 @@ st.set_page_config(
     layout="centered"
 )
 
-# 2. Load the Serialized Artifacts safely (Updated with your exact file names)
+# 2. Load the Serialized Artifacts safely
 @st.cache_resource
 def load_artifacts():
-    model = joblib.load("xgb_fraud_pickle.pkl") # Aapki naye file ka naam
+    model = joblib.load("xgb_fraud_pickle.pkl")
     scaler = joblib.load("robust_scaler.pkl")
     return model, scaler
 
@@ -22,7 +22,7 @@ try:
     artifacts_loaded = True
 except Exception as e:
     artifacts_loaded = False
-    st.error(f"Error loading model artifacts: {e}")
+    st.error(f"Error loading model files: {e}")
 
 # 3. UI Header
 st.title("🛡️ Financial Fraud Analytics Engine")
@@ -54,32 +54,45 @@ if artifacts_loaded:
                 v_val = st.number_input(f"V{i}", value=0.0, key=f"V{i}")
                 v_inputs.append(v_val)
                 
-        # Submit button
         submit_btn = st.form_submit_button("Analyze Transaction Risk", type="primary")
 
-    # 4. Prediction Logic
+    # 4. Prediction Logic (With Strict Feature Column Names for XGBoost)
     if submit_btn:
-        raw_features = np.array([[time_input, amount_input]])
-        scaled_features = scaler.transform(raw_features)
-        
-        final_input_vector = [scaled_features[0][0]] + v_inputs + [scaled_features[0][1]]
-        input_df = pd.DataFrame([final_input_vector])
-        
-        prediction = model.predict(input_df)[0]
-        prediction_proba = model.predict_proba(input_df)[0]
-        
-        # 5. Display Results
-        st.markdown("### 📊 Diagnostics Evaluation Report")
-        
-        fraud_probability = prediction_proba[1] * 100
-        genuine_probability = prediction_proba[0] * 100
-        
-        if prediction == 1:
-            st.error(f"🚨 **Alert: Highly Suspect / Fraudulent Transaction Detected!**")
-            st.metric(label="Fraud Risk Probability", value=f"{fraud_probability:.2f}%")
-        else:
-            st.success(f"✅ **Clear: Transaction is Statistically Genuine.**")
-            st.metric(label="Genuine Probability Confidence", value=f"{genuine_probability:.2f}%")
+        try:
+            # Scale Time and Amount
+            raw_features = np.array([[time_input, amount_input]])
+            scaled_features = scaler.transform(raw_features)
+            
+            scaled_time = scaled_features[0][0]
+            scaled_amount = scaled_features[0][1]
+            
+            # Construct the exact match of 30 columns in correct order
+            feature_dict = {'Time': scaled_time}
+            for i in range(1, 29):
+                feature_dict[f'V{i}'] = v_inputs[i-1]
+            feature_dict['Amount'] = scaled_amount
+            
+            # Convert to DataFrame so XGBoost reads feature names perfectly
+            input_df = pd.DataFrame([feature_dict])
+            
+            # Model Prediction
+            prediction = model.predict(input_df)[0]
+            prediction_proba = model.predict_proba(input_df)[0]
+            
+            # 5. Display Results
+            st.markdown("### 📊 Diagnostics Evaluation Report")
+            
+            fraud_probability = prediction_proba[1] * 100
+            genuine_probability = prediction_proba[0] * 100
+            
+            if prediction == 1:
+                st.error(f"🚨 **Alert: Highly Suspect / Fraudulent Transaction Detected!**")
+                st.metric(label="Fraud Risk Probability", value=f"{fraud_probability:.2f}%")
+            else:
+                st.success(f"✅ **Clear: Transaction is Statistically Genuine.**")
+                st.metric(label="Genuine Probability Confidence", value=f"{genuine_probability:.2f}%")
+        except Exception as pred_error:
+            st.error(f"Prediction Diagnostics Error: {pred_error}")
 
 else:
     st.info("💡 Deployment Tip: Please ensure 'xgb_fraud_pickle.pkl' and 'robust_scaler.pkl' are placed in the same repository root directory.")
