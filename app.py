@@ -56,25 +56,27 @@ if artifacts_loaded:
                 
         submit_btn = st.form_submit_button("Analyze Transaction Risk", type="primary")
 
-    # 4. Prediction Logic (Fixed Scaler Dimensions)
+    # 4. Prediction Logic (Matching exact training feature names)
     if submit_btn:
         try:
-            # Safely scale the Amount using the single-feature RobustScaler
-            # We reshape to [[amount]] because scaler expects 2D array of 1 feature
+            # Scale the Amount using RobustScaler
             raw_amount = np.array([[amount_input]])
-            scaled_amount = scaler.transform(raw_amount)[0][0]
+            scaled_amount_val = scaler.transform(raw_amount)[0][0]
             
-            # Keep Time as raw or scaled based on your training pipeline
-            # If your pipeline didn't scale Time, raw time will be used here
-            scaled_time = time_input 
+            # Using raw time as scaled_time placeholder (or adjust if you scaled time differently)
+            scaled_time_val = time_input 
             
-            # Construct the exact match of 30 columns in correct order for XGBoost
-            feature_dict = {'Time': scaled_time}
+            # Construct dictionary with the EXACT column names your model expects
+            feature_dict = {
+                'scaled_time': scaled_time_val,
+                'scaled_amount': scaled_amount_val
+            }
+            
+            # Add V1 to V28 in the middle/correct order
             for i in range(1, 29):
                 feature_dict[f'V{i}'] = v_inputs[i-1]
-            feature_dict['Amount'] = scaled_amount
             
-            # Convert to DataFrame so XGBoost reads feature names perfectly
+            # Convert to DataFrame
             input_df = pd.DataFrame([feature_dict])
             
             # Model Prediction
