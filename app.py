@@ -56,17 +56,19 @@ if artifacts_loaded:
                 
         submit_btn = st.form_submit_button("Analyze Transaction Risk", type="primary")
 
-    # 4. Prediction Logic (With Strict Feature Column Names for XGBoost)
+    # 4. Prediction Logic (Fixed Scaler Dimensions)
     if submit_btn:
         try:
-            # Scale Time and Amount
-            raw_features = np.array([[time_input, amount_input]])
-            scaled_features = scaler.transform(raw_features)
+            # Safely scale the Amount using the single-feature RobustScaler
+            # We reshape to [[amount]] because scaler expects 2D array of 1 feature
+            raw_amount = np.array([[amount_input]])
+            scaled_amount = scaler.transform(raw_amount)[0][0]
             
-            scaled_time = scaled_features[0][0]
-            scaled_amount = scaled_features[0][1]
+            # Keep Time as raw or scaled based on your training pipeline
+            # If your pipeline didn't scale Time, raw time will be used here
+            scaled_time = time_input 
             
-            # Construct the exact match of 30 columns in correct order
+            # Construct the exact match of 30 columns in correct order for XGBoost
             feature_dict = {'Time': scaled_time}
             for i in range(1, 29):
                 feature_dict[f'V{i}'] = v_inputs[i-1]
